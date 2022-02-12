@@ -1,0 +1,10 @@
+[tanaka]
+device_arn=arn:aws:iam::012345678901:mfa/tanaka
+
+[suzuki]
+foo=bar
+
+[satoh]
+device_arn=arn:aws:iam::012345678901:mfa/satoh
+
+[takahashi]
