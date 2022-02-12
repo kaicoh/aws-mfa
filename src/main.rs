@@ -1,4 +1,4 @@
-use clap::{Arg, app_from_crate};
+use clap::{app_from_crate, Arg};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;

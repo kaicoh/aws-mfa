@@ -37,7 +37,7 @@ pub fn read_config(read: Box<dyn BufRead>) -> Result<Vec<Config>> {
         match read_config_line(&line?) {
             ConfigRow::Username(_username) => {
                 username = _username;
-            },
+            }
             ConfigRow::DeviceArn(device_arn) => {
                 if !username.is_empty() {
                     configs.push(Config {
@@ -47,8 +47,8 @@ pub fn read_config(read: Box<dyn BufRead>) -> Result<Vec<Config>> {
 
                     username = "".to_string();
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 
@@ -96,10 +96,7 @@ mod tests {
 
         #[test]
         fn it_returns_username_from_captures() {
-            assert_eq!(
-                capture_username("[tanaka]").unwrap(),
-                "tanaka"
-            );
+            assert_eq!(capture_username("[tanaka]").unwrap(), "tanaka");
         }
     }
 
@@ -176,8 +173,14 @@ mod tests {
 
         fn configs() -> Vec<Config> {
             vec![
-                Config{ username: "tanaka".to_owned(), device_arn: "tanaka-device".to_owned() },
-                Config{ username: "suzuki".to_owned(), device_arn: "suzuki-device".to_owned() },
+                Config {
+                    username: "tanaka".to_owned(),
+                    device_arn: "tanaka-device".to_owned(),
+                },
+                Config {
+                    username: "suzuki".to_owned(),
+                    device_arn: "suzuki-device".to_owned(),
+                },
             ]
         }
     }
