@@ -8,7 +8,6 @@ use std::path::Path;
 type Result<T> = crate::Result<T>;
 
 lazy_static! {
-    static ref RE_PROFILE: Regex = Regex::new(r"\[(.+)\]").unwrap();
     static ref RE_DEVICE_ARN: Regex = Regex::new(r"^device_arn=(.+)").unwrap();
 }
 
@@ -71,7 +70,7 @@ fn read_config(read: BufReader<File>) -> Result<Vec<Config>> {
 }
 
 fn read_config_line(line: &str) -> ConfigRow {
-    if let Some(profile) = capture_profile(line) {
+    if let Some(profile) = super::capture_profile(line) {
         return ConfigRow::Profile(profile.to_string());
     }
 
@@ -82,38 +81,13 @@ fn read_config_line(line: &str) -> ConfigRow {
     ConfigRow::Other
 }
 
-fn capture_profile(line: &str) -> Option<&str> {
-    capture_keywords(&RE_PROFILE, line)
-}
-
 fn capture_device_arn(line: &str) -> Option<&str> {
-    capture_keywords(&RE_DEVICE_ARN, line)
-}
-
-fn capture_keywords<'a, 'b>(reg: &'a Regex, line: &'b str) -> Option<&'b str> {
-    reg.captures(line)
-        .map(|caps| caps.get(1))
-        .flatten()
-        .map(|mat| mat.as_str())
+    super::capture_keywords(&RE_DEVICE_ARN, line)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    mod capture_profile {
-        use super::*;
-
-        #[test]
-        fn it_returns_none_when_not_match_regexp() {
-            assert!(capture_profile("").is_none());
-        }
-
-        #[test]
-        fn it_returns_profile_from_captures() {
-            assert_eq!(capture_profile("[tanaka]").unwrap(), "tanaka");
-        }
-    }
 
     mod capture_device_arn {
         use super::*;
