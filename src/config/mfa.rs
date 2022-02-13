@@ -57,10 +57,9 @@ fn read_config(read: BufReader<File>) -> Result<Vec<Config>> {
             ConfigRow::DeviceArn(device_arn) => {
                 if !profile.is_empty() {
                     configs.push(Config {
-                        profile: profile.to_string(),
+                        profile,
                         device_arn,
                     });
-
                     profile = "".to_string();
                 }
             }
