@@ -57,7 +57,7 @@ fn main() -> Result<()> {
             } else {
                 eprintln!("{}", String::from_utf8(out.stderr)?);
             }
-        },
+        }
         Err(err) => eprintln!("{}", err),
     }
 
