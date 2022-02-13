@@ -1,7 +1,8 @@
+use anyhow::anyhow;
 use aws_mfa::config;
 use clap::{app_from_crate, Arg};
 use serde::Deserialize;
-use std::process::Command;
+use std::process::{Command, Output};
 
 type Result<T> = aws_mfa::Result<T>;
 
@@ -23,7 +24,14 @@ struct Credentials {
 
 const MFA_CODE: &str = "mfa_code";
 
-fn main() -> Result<()> {
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("{}", err);
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let matches = app_from_crate!()
         .arg(
             Arg::new(MFA_CODE)
@@ -36,26 +44,24 @@ fn main() -> Result<()> {
     let code = matches.value_of(MFA_CODE).unwrap();
     let device_arn = config::mfa::get_device_arn("default")?;
 
-    let output = Command::new("aws")
+    let Output {
+        status,
+        stdout,
+        stderr,
+    } = Command::new("aws")
         .arg("sts")
         .arg("get-session-token")
         .args(["--serial-number", &device_arn])
         .args(["--token-code", code])
-        .output();
+        .output()?;
 
-    match output {
-        Ok(out) => {
-            if out.status.success() {
-                let SessionTokens { credentials } = serde_json::from_slice(&out.stdout)?;
-                println!("AccessKeyId: {}", credentials.access_key_id);
-                println!("SecretAccessKey: {}", credentials.secret_access_key);
-                println!("SessionToken: {}", credentials.session_token);
-            } else {
-                eprintln!("{}", String::from_utf8(out.stderr)?);
-            }
-        }
-        Err(err) => eprintln!("{}", err),
+    if status.success() {
+        let SessionTokens { credentials } = serde_json::from_slice(&stdout)?;
+        println!("AccessKeyId: {}", credentials.access_key_id);
+        println!("SecretAccessKey: {}", credentials.secret_access_key);
+        println!("SessionToken: {}", credentials.session_token);
+        Ok(())
+    } else {
+        Err(anyhow!("{}", String::from_utf8(stderr)?))
     }
-
-    Ok(())
 }
