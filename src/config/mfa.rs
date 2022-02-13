@@ -28,7 +28,7 @@ struct Config {
 pub fn get_device_arn(profile: &str) -> Result<String> {
     let configs = get_file().and_then(read_config)?;
     search_device_arn(profile, configs)
-        .ok_or_else(|| anyhow!("Not Found mfa device arn for: {}", profile))
+        .ok_or_else(|| anyhow!("Not Found mfa device arn for profile: {}", profile))
 }
 
 fn get_file() -> Result<BufReader<File>> {
