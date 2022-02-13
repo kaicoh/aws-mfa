@@ -7,6 +7,11 @@ lazy_static! {
     static ref RE_PROFILE: Regex = Regex::new(r"\[(.+)\]").unwrap();
 }
 
+fn config_dir() -> String {
+    let home = std::env::var("HOME").expect("env HOME is required");
+    format!("{}/.aws", home)
+}
+
 fn capture_profile(line: &str) -> Option<&str> {
     capture_keywords(&RE_PROFILE, line)
 }

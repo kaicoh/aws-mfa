@@ -31,10 +31,8 @@ pub fn get_device_arn(profile: &str) -> Result<String> {
 }
 
 fn get_file() -> Result<BufReader<File>> {
-    let home = std::env::var("HOME").expect("env HOME is required");
-    let filepath = format!("{}/.aws/mfa-config", home);
-    let file = File::open(Path::new(&filepath))?;
-    Ok(BufReader::new(file))
+    let path = Path::new(&super::config_dir()).join("mfa-config");
+    Ok(BufReader::new(File::open(path)?))
 }
 
 fn search_device_arn(profile: &str, configs: Vec<Config>) -> Option<String> {
