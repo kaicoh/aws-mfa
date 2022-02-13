@@ -1,55 +1,89 @@
+use anyhow::anyhow;
+use aws_mfa::config;
 use clap::{app_from_crate, Arg};
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::path::Path;
-use std::process::Command;
+use serde::Deserialize;
+use std::process::{Command, Output};
 
 type Result<T> = aws_mfa::Result<T>;
 
-const MFA_CODE: &str = "mfa_code";
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct SessionTokens {
+    credentials: Credentials,
+}
 
-fn main() -> Result<()> {
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct Credentials {
+    access_key_id: String,
+    secret_access_key: String,
+    session_token: String,
+    #[allow(dead_code)]
+    expiration: String,
+}
+
+const MFA_CODE: &str = "mfa_code";
+const PROFILE: &str = "profile";
+
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("{}", err);
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let matches = app_from_crate!()
         .arg(
             Arg::new(MFA_CODE)
                 .value_name("MFA_CODE")
-                .help("MFA code")
+                .help("MFA one time pass code")
                 .required(true),
         )
+        .arg(
+            Arg::new(PROFILE)
+                .short('p')
+                .long("profile")
+                .takes_value(true)
+                .value_name("PROFILE")
+                .help("profile name in AWS CLI credentials"),
+            )
         .get_matches();
 
     let code = matches.value_of(MFA_CODE).unwrap();
+    let (use_profile, profile) = match matches.value_of(PROFILE) {
+        Some(p) => (true, p),
+        None => (false, "default"),
+    };
 
-    let configfile = get_configfile()?;
-    let device_arn = get_device_arn("default", configfile)?;
-
-    let cmd = Command::new("aws")
+    let device_arn = config::mfa::get_device_arn(&profile)?;
+    let Output {
+        status,
+        stdout,
+        stderr,
+    } = Command::new("aws")
         .arg("sts")
         .arg("get-session-token")
         .args(["--serial-number", &device_arn])
         .args(["--token-code", code])
-        .output();
+        .args(profile_args(use_profile, profile))
+        .output()?;
 
-    match cmd {
-        Ok(res) => println!("{:#?}", res),
-        Err(err) => eprintln!("{}", err),
-    }
-
-    Ok(())
-}
-
-fn get_device_arn(user: &str, read: Box<dyn BufRead>) -> Result<String> {
-    let configs = aws_mfa::read_config(read)?;
-    match aws_mfa::get_device_arn(user, configs) {
-        Some(device_arn) => Ok(device_arn),
-        None => panic!("Not Found mfa device arn for {}", user),
+    if status.success() {
+        let SessionTokens { credentials } = serde_json::from_slice(&stdout)?;
+        println!("AccessKeyId: {}", credentials.access_key_id);
+        println!("SecretAccessKey: {}", credentials.secret_access_key);
+        println!("SessionToken: {}", credentials.session_token);
+        Ok(())
+    } else {
+        Err(anyhow!("{}", String::from_utf8(stderr)?))
     }
 }
 
-fn get_configfile() -> Result<Box<dyn BufRead>> {
-    let home = std::env::var("HOME").expect("env HOME is required");
-    let filepath = format!("{}/.aws/mfa-config", home);
-    let path = Path::new(&filepath);
-    let file = File::open(path)?;
-    Ok(Box::new(BufReader::new(file)))
+fn profile_args(use_profile: bool, profile: &str) -> Vec<&str> {
+    if use_profile {
+        vec!["--profile", profile]
+    } else {
+        vec![]
+    }
 }
