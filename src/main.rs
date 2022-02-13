@@ -1,26 +1,7 @@
 use anyhow::anyhow;
-use aws_mfa::config;
+use aws_mfa::{config, Result, SessionTokens};
 use clap::{app_from_crate, Arg};
-use serde::Deserialize;
 use std::process::{Command, Output};
-
-type Result<T> = aws_mfa::Result<T>;
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct SessionTokens {
-    credentials: Credentials,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct Credentials {
-    access_key_id: String,
-    secret_access_key: String,
-    session_token: String,
-    #[allow(dead_code)]
-    expiration: String,
-}
 
 const MFA_CODE: &str = "mfa_code";
 const PROFILE: &str = "profile";
@@ -70,10 +51,8 @@ fn run() -> Result<()> {
         .output()?;
 
     if status.success() {
-        let SessionTokens { credentials } = serde_json::from_slice(&stdout)?;
-        println!("AccessKeyId: {}", credentials.access_key_id);
-        println!("SecretAccessKey: {}", credentials.secret_access_key);
-        println!("SessionToken: {}", credentials.session_token);
+        let tokens: SessionTokens = serde_json::from_slice(&stdout)?;
+        println!("{:#?}", tokens);
         Ok(())
     } else {
         Err(anyhow!("{}", String::from_utf8(stderr)?))
