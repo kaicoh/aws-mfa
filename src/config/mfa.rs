@@ -135,8 +135,6 @@ mod tests {
 
     mod read_config {
         use super::*;
-        use std::fs::File;
-        use std::io::BufReader;
 
         #[test]
         fn it_read_config_with_one_user() {
