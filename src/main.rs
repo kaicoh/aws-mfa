@@ -47,7 +47,7 @@ fn run() -> Result<()> {
                 .takes_value(true)
                 .value_name("PROFILE")
                 .help("profile name in AWS CLI credentials"),
-            )
+        )
         .get_matches();
 
     let code = matches.value_of(MFA_CODE).unwrap();
@@ -56,7 +56,7 @@ fn run() -> Result<()> {
         None => (false, "default"),
     };
 
-    let device_arn = config::mfa::get_device_arn(&profile)?;
+    let device_arn = config::mfa::get_device_arn(profile)?;
     let Output {
         status,
         stdout,
