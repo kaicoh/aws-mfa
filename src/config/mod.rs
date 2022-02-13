@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
+pub mod credentials;
 pub mod mfa;
 
 lazy_static! {

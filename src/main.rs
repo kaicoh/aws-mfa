@@ -53,7 +53,7 @@ fn run() -> Result<()> {
     if status.success() {
         let tokens: SessionTokens = serde_json::from_slice(&stdout)?;
         println!("{:#?}", tokens);
-        Ok(())
+        config::credentials::copy_credentials()
     } else {
         Err(anyhow!("{}", String::from_utf8(stderr)?))
     }

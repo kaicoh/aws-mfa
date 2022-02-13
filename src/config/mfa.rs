@@ -1,11 +1,11 @@
+use crate::Result;
+
 use anyhow::anyhow;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-
-type Result<T> = crate::Result<T>;
 
 lazy_static! {
     static ref RE_DEVICE_ARN: Regex = Regex::new(r"^device_arn=(.+)").unwrap();
