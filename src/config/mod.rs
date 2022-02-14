@@ -13,10 +13,12 @@ fn config_dir() -> String {
     format!("{}/.aws", home)
 }
 
+#[allow(dead_code)]
 fn capture_profile(line: &str) -> Option<&str> {
     capture_keywords(&RE_PROFILE, line)
 }
 
+#[allow(dead_code)]
 fn capture_keywords<'a, 'b>(reg: &'a Regex, line: &'b str) -> Option<&'b str> {
     reg.captures(line)
         .map(|caps| caps.get(1))
