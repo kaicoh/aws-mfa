@@ -108,5 +108,5 @@ fn backupfile(matches: &ArgMatches, config: &config::mfa::Config) -> String {
         return f.to_string();
     }
 
-    return "credentials_bk".to_string();
+    "credentials_bk".to_string()
 }
