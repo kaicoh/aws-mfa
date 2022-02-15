@@ -24,7 +24,7 @@ impl ConfigFile {
         let mut profile = "".to_string();
         let mut lines: Vec<String> = Vec::new();
 
-        let add_credentials = |p: &str, ls: &Vec<String>, creds: &mut Vec<Credential>| {
+        let add_credential = |p: &str, ls: &Vec<String>, creds: &mut Vec<Credential>| {
             if !p.is_empty() {
                 let cred = Credential::new(p, ls);
                 creds.push(cred);
@@ -35,7 +35,7 @@ impl ConfigFile {
             let line = l?;
 
             if let Some(p) = capture_profile(&line) {
-                add_credentials(&profile, &lines, &mut credentials);
+                add_credential(&profile, &lines, &mut credentials);
 
                 profile = p.to_string();
                 lines = Vec::new();
@@ -44,7 +44,7 @@ impl ConfigFile {
             }
         }
 
-        add_credentials(&profile, &lines, &mut credentials);
+        add_credential(&profile, &lines, &mut credentials);
 
         Ok(ConfigFile { credentials })
     }
