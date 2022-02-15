@@ -12,7 +12,7 @@ pub struct Config {
 
 impl Config {
     pub fn read() -> Result<Self> {
-        let path = Path::new(&super::config_dir()).join("mfa.yml");
+        let path = super::config_file("mfa.yml");
         get_config(path)
     }
 }
