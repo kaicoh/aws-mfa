@@ -1,10 +1,12 @@
 use anyhow::anyhow;
+use aws_mfa::config::credentials::{credentials_path, ConfigFile as CredFile};
 use aws_mfa::{config, Result, SessionTokens};
 use clap::{app_from_crate, Arg, ArgMatches};
 use std::process::{Command, Output};
 
 const ARG_MFA_CODE: &str = "mfa_code";
 const ARG_PROFILE: &str = "profile";
+const ARG_MFA_PROFILE: &str = "mfa-profile";
 const ARG_DURATION: &str = "duration";
 const ARG_BACKUP_FILE: &str = "backup_file";
 
@@ -41,6 +43,15 @@ fn run() -> Result<()> {
                 .default_value("900"),
         )
         .arg(
+            Arg::new(ARG_MFA_PROFILE)
+                .short('m')
+                .long("mfa-profile")
+                .takes_value(true)
+                .value_name("MFA_PROFILE")
+                .help("profile name for mfa credentials")
+                .default_value("mfa"),
+        )
+        .arg(
             Arg::new(ARG_BACKUP_FILE)
                 .short('b')
                 .long("backup")
@@ -52,6 +63,7 @@ fn run() -> Result<()> {
     let config = config::mfa::Config::read()?;
 
     let code = matches.value_of(ARG_MFA_CODE).unwrap();
+    let mfa_profile = matches.value_of(ARG_MFA_PROFILE).unwrap();
     let backup = backupfile(&matches, &config);
 
     // Ref: https://aws.amazon.com/premiumsupport/knowledge-center/authenticate-mfa-cli/?nc1=h_ls
@@ -84,8 +96,9 @@ fn run() -> Result<()> {
 
     if status.success() {
         let tokens: SessionTokens = serde_json::from_slice(&stdout)?;
-        println!("{:#?}", tokens);
-        config::credentials::copy_credentials(&backup)
+
+        config::credentials::copy_credentials(&backup)?;
+        write_mfa_credentials(mfa_profile, &tokens)
     } else {
         Err(anyhow!("{}", String::from_utf8(stderr)?))
     }
@@ -109,4 +122,14 @@ fn backupfile(matches: &ArgMatches, config: &config::mfa::Config) -> String {
     }
 
     "credentials_bk".to_string()
+}
+
+fn write_mfa_credentials(mfa_profile: &str, tokens: &SessionTokens) -> Result<()> {
+    let cred = tokens.to_aws_credential(mfa_profile);
+    let config = CredFile::from_path(credentials_path())?;
+
+    config
+        .remove_credential(mfa_profile)
+        .set_credential(cred)
+        .write(credentials_path())
 }

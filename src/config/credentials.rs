@@ -39,7 +39,7 @@ impl ConfigFile {
 
                 profile = p.to_string();
                 lines = Vec::new();
-            } else {
+            } else if !line.is_empty() {
                 lines.push(line)
             }
         }
@@ -75,7 +75,7 @@ impl ToString for ConfigFile {
             .iter()
             .map(ToString::to_string)
             .collect::<Vec<String>>()
-            .join("\n")
+            .join("\n\n")
     }
 }
 
@@ -108,7 +108,7 @@ pub fn copy_credentials(backup: &str) -> Result<()> {
         .map_err(anyhow::Error::new)
 }
 
-fn credentials_path() -> PathBuf {
+pub fn credentials_path() -> PathBuf {
     super::config_file("credentials")
 }
 
@@ -142,7 +142,6 @@ mod tests {
                 vec![
                     "aws_access_key_id=ABCDEFGHIJKLMNOPQRST",
                     "aws_secret_access_key=abcdefghijklmnopqrstuvwxyz+-#$1234567890",
-                    "",
                 ]
             );
 
@@ -181,12 +180,9 @@ mod tests {
         fn it_writes() {
             let config = ConfigFile {
                 credentials: vec![
-                    Credential::new("tanaka", &vec!["foobarbaz".to_owned(), "".to_owned()]),
-                    Credential::new(
-                        "takahashi",
-                        &vec!["foo".to_owned(), "bar".to_owned(), "".to_owned()],
-                    ),
-                    Credential::new("saito", &vec!["".to_owned()]),
+                    Credential::new("tanaka", &vec!["foobarbaz".to_owned()]),
+                    Credential::new("takahashi", &vec!["foo".to_owned(), "bar".to_owned()]),
+                    Credential::new("saito", &vec![]),
                 ],
             };
 
