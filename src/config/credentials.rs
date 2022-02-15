@@ -24,18 +24,11 @@ impl ConfigFile {
         let mut profile = "".to_string();
         let mut lines: Vec<String> = Vec::new();
 
-        let add_credential = |p: &str, ls: &Vec<String>, creds: &mut Vec<Credential>| {
-            if !p.is_empty() {
-                let cred = Credential::new(p, ls);
-                creds.push(cred);
-            }
-        };
-
         for l in reader.lines() {
             let line = l?;
 
             if let Some(p) = capture_profile(&line) {
-                add_credential(&profile, &lines, &mut credentials);
+                Self::add_credential(&profile, &lines, &mut credentials);
 
                 profile = p.to_string();
                 lines = Vec::new();
@@ -44,10 +37,18 @@ impl ConfigFile {
             }
         }
 
-        add_credential(&profile, &lines, &mut credentials);
+        Self::add_credential(&profile, &lines, &mut credentials);
 
         Ok(ConfigFile { credentials })
     }
+
+    fn add_credential(p: &str, ls: &[String], creds: &mut Vec<Credential>) {
+        if !p.is_empty() {
+            let cred = Credential::new(p, ls);
+            creds.push(cred);
+        }
+    }
+
     pub fn remove_credential(self, profile: &str) -> Self {
         let credentials = self
             .credentials

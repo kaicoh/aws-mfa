@@ -1,5 +1,7 @@
 use anyhow::anyhow;
-use aws_mfa::config::credentials::{credentials_path, ConfigFile as CredFile};
+use aws_mfa::config::credentials::{
+    copy_credentials as backup_credentials, credentials_path, ConfigFile as CredFile,
+};
 use aws_mfa::{config, Result, SessionTokens};
 use clap::{app_from_crate, Arg, ArgMatches};
 use std::process::{Command, Output};
@@ -97,7 +99,7 @@ fn run() -> Result<()> {
     if status.success() {
         let tokens: SessionTokens = serde_json::from_slice(&stdout)?;
 
-        config::credentials::copy_credentials(&backup)?;
+        backup_credentials(&backup)?;
         write_mfa_credentials(mfa_profile, &tokens)
     } else {
         Err(anyhow!("{}", String::from_utf8(stderr)?))
