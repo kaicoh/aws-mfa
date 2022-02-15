@@ -1,0 +1,6 @@
+devices:
+  - profile: tanaka
+    arn: arn:aws:iam::012345678901:mfa/tanaka
+  - profile: satoh
+    arn: arn:aws:iam::012345678901:mfa/satoh
+backup_file: test_bk

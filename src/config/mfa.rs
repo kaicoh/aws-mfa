@@ -1,173 +1,84 @@
+use crate::Result;
+
 use anyhow::anyhow;
-use lazy_static::lazy_static;
-use regex::Regex;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
+use serde::Deserialize;
 use std::path::Path;
 
-type Result<T> = crate::Result<T>;
-
-lazy_static! {
-    static ref RE_PROFILE: Regex = Regex::new(r"\[(.+)\]").unwrap();
-    static ref RE_DEVICE_ARN: Regex = Regex::new(r"^device_arn=(.+)").unwrap();
+#[derive(Debug, Deserialize)]
+pub struct Config {
+    devices: Vec<Device>,
+    pub backup_file: Option<String>,
 }
 
-#[derive(Debug)]
-enum ConfigRow {
-    Profile(String),
-    DeviceArn(String),
-    Other,
+impl Config {
+    pub fn read() -> Result<Self> {
+        let path = super::config_file("mfa.yml");
+        get_config(path)
+    }
 }
 
-#[derive(Debug)]
-struct Config {
+#[derive(Debug, Deserialize)]
+struct Device {
     profile: String,
-    device_arn: String,
+    arn: String,
 }
 
-pub fn get_device_arn(profile: &str) -> Result<String> {
-    let configs = get_file().and_then(read_config)?;
-    search_device_arn(profile, configs)
+pub fn get_device_arn(profile: &str, config: &Config) -> Result<String> {
+    search_device_arn(profile, config)
         .ok_or_else(|| anyhow!("Not Found mfa device arn for profile: {}", profile))
 }
 
-fn get_file() -> Result<BufReader<File>> {
-    let home = std::env::var("HOME").expect("env HOME is required");
-    let filepath = format!("{}/.aws/mfa-config", home);
-    let file = File::open(Path::new(&filepath))?;
-    Ok(BufReader::new(file))
+fn get_config<P: AsRef<Path>>(path: P) -> Result<Config> {
+    let conf = std::fs::read_to_string(&path)
+        .map_err(|e| anyhow!("{}: {}", e, path.as_ref().to_str().unwrap()))?;
+    serde_yaml::from_str(&conf).map_err(anyhow::Error::new)
 }
 
-fn search_device_arn(profile: &str, configs: Vec<Config>) -> Option<String> {
-    configs
+fn search_device_arn(profile: &str, config: &Config) -> Option<String> {
+    config
+        .devices
         .iter()
-        .find(|conf| conf.profile == profile)
-        .map(|conf| conf.device_arn.to_string())
-}
-
-fn read_config(read: BufReader<File>) -> Result<Vec<Config>> {
-    let mut configs: Vec<Config> = vec![];
-    let mut profile: String = "".to_string();
-
-    for line in read.lines() {
-        match read_config_line(&line?) {
-            ConfigRow::Profile(_profile) => {
-                profile = _profile;
-            }
-            ConfigRow::DeviceArn(device_arn) => {
-                if !profile.is_empty() {
-                    configs.push(Config {
-                        profile,
-                        device_arn,
-                    });
-                    profile = "".to_string();
-                }
-            }
-            _ => {}
-        }
-    }
-
-    Ok(configs)
-}
-
-fn read_config_line(line: &str) -> ConfigRow {
-    if let Some(profile) = capture_profile(line) {
-        return ConfigRow::Profile(profile.to_string());
-    }
-
-    if let Some(device_arn) = capture_device_arn(line) {
-        return ConfigRow::DeviceArn(device_arn.to_string());
-    }
-
-    ConfigRow::Other
-}
-
-fn capture_profile(line: &str) -> Option<&str> {
-    capture_keywords(&RE_PROFILE, line)
-}
-
-fn capture_device_arn(line: &str) -> Option<&str> {
-    capture_keywords(&RE_DEVICE_ARN, line)
-}
-
-fn capture_keywords<'a, 'b>(reg: &'a Regex, line: &'b str) -> Option<&'b str> {
-    reg.captures(line)
-        .map(|caps| caps.get(1))
-        .flatten()
-        .map(|mat| mat.as_str())
+        .find(|device| device.profile == profile)
+        .map(|device| device.arn.clone())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    mod capture_profile {
+    mod get_config {
         use super::*;
 
         #[test]
-        fn it_returns_none_when_not_match_regexp() {
-            assert!(capture_profile("").is_none());
-        }
-
-        #[test]
-        fn it_returns_profile_from_captures() {
-            assert_eq!(capture_profile("[tanaka]").unwrap(), "tanaka");
-        }
-    }
-
-    mod capture_device_arn {
-        use super::*;
-
-        #[test]
-        fn it_returns_none_when_not_match_regexp() {
-            assert!(capture_device_arn("").is_none());
-        }
-
-        #[test]
-        fn it_returns_device_arn_from_captures() {
-            assert_eq!(
-                capture_device_arn("device_arn=arn:aws:iam::012345678901:mfa/tanaka").unwrap(),
-                "arn:aws:iam::012345678901:mfa/tanaka",
-            );
-        }
-    }
-
-    mod read_config {
-        use super::*;
-
-        #[test]
-        fn it_read_config_with_one_user() {
-            let result = read_file("mock/test-config1");
+        fn it_read_config_with_one_profile() {
+            let result = get_config("mock/test-config1.yml");
             assert!(result.is_ok());
 
-            let configs = result.unwrap();
-            assert_eq!(configs.len(), 1);
+            let config = result.unwrap();
+            assert_eq!(config.devices.len(), 1);
+            assert!(config.backup_file.is_none());
 
-            let config = configs.get(0).unwrap();
-            assert_eq!(config.profile, "tanaka");
-            assert_eq!(config.device_arn, "arn:aws:iam::012345678901:mfa/tanaka");
+            let device = config.devices.get(0).unwrap();
+            assert_eq!(device.profile, "tanaka");
+            assert_eq!(device.arn, "arn:aws:iam::012345678901:mfa/tanaka");
         }
 
         #[test]
-        fn it_read_config_with_multiple_users() {
-            let result = read_file("mock/test-config2");
+        fn it_read_config_with_multiple_profiles() {
+            let result = get_config("mock/test-config2.yml");
             assert!(result.is_ok());
 
-            let configs = result.unwrap();
-            assert_eq!(configs.len(), 2);
+            let config = result.unwrap();
+            assert_eq!(config.devices.len(), 2);
+            assert_eq!(config.backup_file, Some("test_bk".to_owned()));
 
-            let config = configs.get(0).unwrap();
-            assert_eq!(config.profile, "tanaka");
-            assert_eq!(config.device_arn, "arn:aws:iam::012345678901:mfa/tanaka");
+            let device = config.devices.get(0).unwrap();
+            assert_eq!(device.profile, "tanaka");
+            assert_eq!(device.arn, "arn:aws:iam::012345678901:mfa/tanaka");
 
-            let config = configs.get(1).unwrap();
-            assert_eq!(config.profile, "satoh");
-            assert_eq!(config.device_arn, "arn:aws:iam::012345678901:mfa/satoh");
-        }
-
-        fn read_file(path: &str) -> Result<Vec<Config>> {
-            let reader = BufReader::new(File::open(path).unwrap());
-            read_config(reader)
+            let device = config.devices.get(1).unwrap();
+            assert_eq!(device.profile, "satoh");
+            assert_eq!(device.arn, "arn:aws:iam::012345678901:mfa/satoh");
         }
     }
 
@@ -176,28 +87,31 @@ mod tests {
 
         #[test]
         fn it_finds_device_arn_from_configs() {
-            let result = search_device_arn("suzuki", configs());
+            let result = search_device_arn("suzuki", &test_config());
             assert!(result.is_some());
             assert_eq!(result.unwrap(), "suzuki-device");
         }
 
         #[test]
         fn it_returns_none_when_not_found_device_arn() {
-            let result = search_device_arn("satoh", configs());
+            let result = search_device_arn("satoh", &test_config());
             assert!(result.is_none());
         }
 
-        fn configs() -> Vec<Config> {
-            vec![
-                Config {
-                    profile: "tanaka".to_owned(),
-                    device_arn: "tanaka-device".to_owned(),
-                },
-                Config {
-                    profile: "suzuki".to_owned(),
-                    device_arn: "suzuki-device".to_owned(),
-                },
-            ]
+        fn test_config() -> Config {
+            Config {
+                devices: vec![
+                    Device {
+                        profile: "tanaka".to_owned(),
+                        arn: "tanaka-device".to_owned(),
+                    },
+                    Device {
+                        profile: "suzuki".to_owned(),
+                        arn: "suzuki-device".to_owned(),
+                    },
+                ],
+                backup_file: None,
+            }
         }
     }
 }

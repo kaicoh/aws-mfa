@@ -1,0 +1,3 @@
+devices:
+  - profile: tanaka
+    arn: arn:aws:iam::012345678901:mfa/tanaka
