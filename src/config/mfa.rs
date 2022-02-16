@@ -8,6 +8,8 @@ use std::path::Path;
 pub struct Config {
     devices: Vec<Device>,
     pub backup_file: Option<String>,
+    pub duration: Option<String>,
+    pub mfa_profile: Option<String>,
 }
 
 impl Config {
@@ -57,6 +59,8 @@ mod tests {
             let config = result.unwrap();
             assert_eq!(config.devices.len(), 1);
             assert!(config.backup_file.is_none());
+            assert!(config.duration.is_none());
+            assert!(config.mfa_profile.is_none());
 
             let device = config.devices.get(0).unwrap();
             assert_eq!(device.profile, "tanaka");
@@ -71,6 +75,8 @@ mod tests {
             let config = result.unwrap();
             assert_eq!(config.devices.len(), 2);
             assert_eq!(config.backup_file, Some("test_bk".to_owned()));
+            assert_eq!(config.duration, Some("1000".to_owned()));
+            assert_eq!(config.mfa_profile, Some("test_mfa".to_owned()));
 
             let device = config.devices.get(0).unwrap();
             assert_eq!(device.profile, "tanaka");
@@ -111,6 +117,8 @@ mod tests {
                     },
                 ],
                 backup_file: None,
+                duration: None,
+                mfa_profile: None,
             }
         }
     }

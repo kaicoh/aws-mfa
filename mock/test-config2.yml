@@ -4,3 +4,5 @@ devices:
   - profile: satoh
     arn: arn:aws:iam::012345678901:mfa/satoh
 backup_file: test_bk
+duration: 1000
+mfa_profile: test_mfa
