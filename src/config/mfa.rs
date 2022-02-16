@@ -14,7 +14,21 @@ pub struct Config {
 
 impl Config {
     pub fn read() -> Result<Self> {
-        let path = super::config_file("mfa.yml");
+        let path_yml = super::config_file("mfa.yml");
+        let path_yaml = super::config_file("mfa.yaml");
+
+        let path = if path_yml.exists() {
+            path_yml
+        } else if path_yaml.exists() {
+            path_yaml
+        } else {
+            return Err(anyhow!(
+                "Not Found config file: {} or {}",
+                path_yml.to_str().unwrap(),
+                path_yaml.to_str().unwrap(),
+            ));
+        };
+
         get_config(path)
     }
 }
