@@ -3,19 +3,12 @@ use aws_mfa::config::credentials::{
     copy_credentials as backup_credentials, credentials_path, ConfigFile as CredFile,
 };
 use aws_mfa::config::mfa::Config as MfaConfig;
-use aws_mfa::{config, Result, SessionTokens};
-use clap::{app_from_crate, Arg, ArgMatches};
+use aws_mfa::{
+    config, Options, Result, SessionTokens, ARG_BACKUP_FILE, ARG_DURATION, ARG_MFA_CODE,
+    ARG_MFA_PROFILE, ARG_PROFILE, DEFAULT_BACKUP_FILE, DEFAULT_DURATION, DEFAULT_MFA_PROFILE,
+};
+use clap::{app_from_crate, Arg};
 use std::process::{Command, Output};
-
-const ARG_MFA_CODE: &str = "mfa_code";
-const ARG_PROFILE: &str = "profile";
-const ARG_MFA_PROFILE: &str = "mfa-profile";
-const ARG_DURATION: &str = "duration";
-const ARG_BACKUP_FILE: &str = "backup_file";
-
-const DEFAULT_MFA_PROFILE: &str = "mfa";
-const DEFAULT_DURATION: &str = "900";
-const DEFAULT_BACKUP_FILE: &str = "credentials_bk";
 
 fn main() {
     if let Err(err) = run() {
@@ -86,14 +79,16 @@ fn run() -> Result<()> {
 
     let code = matches.value_of(ARG_MFA_CODE).unwrap();
     let config = MfaConfig::read()?;
+    let options = Options::new(&matches, &config);
 
-    let mfa_profile = get_mfa_profile(&matches, &config);
-    let backup = get_backup_name(&matches, &config);
+    let mfa_profile = options.mfa_profile();
+    let backup = options.backup_file();
 
     // Ref: https://aws.amazon.com/premiumsupport/knowledge-center/authenticate-mfa-cli/?nc1=h_ls
     // root user: 900(15 minutes) <= duration <= 3600(1 hour)
     // other: 900(15 minutes) <= duration <= 129600(36 hours)
-    let duration = get_duration(&matches, &config)
+    let duration = options
+        .duration()
         .parse::<u32>()
         .map_err(|e| anyhow!("Parse error: cannot parse duration (in seconds): {}", e))?;
 
@@ -132,42 +127,6 @@ fn profile_args(use_profile: bool, profile: &str) -> Vec<&str> {
     } else {
         vec![]
     }
-}
-
-fn get_backup_name(matches: &ArgMatches, config: &MfaConfig) -> String {
-    if let Some(f) = matches.value_of(ARG_BACKUP_FILE) {
-        return f.to_string();
-    }
-
-    if let Some(f) = &config.backup_file {
-        return f.to_string();
-    }
-
-    DEFAULT_BACKUP_FILE.to_string()
-}
-
-fn get_mfa_profile(matches: &ArgMatches, config: &MfaConfig) -> String {
-    if let Some(p) = matches.value_of(ARG_MFA_PROFILE) {
-        return p.to_string();
-    }
-
-    if let Some(p) = &config.mfa_profile {
-        return p.to_string();
-    }
-
-    DEFAULT_MFA_PROFILE.to_string()
-}
-
-fn get_duration(matches: &ArgMatches, config: &MfaConfig) -> String {
-    if let Some(d) = matches.value_of(ARG_DURATION) {
-        return d.to_string();
-    }
-
-    if let Some(d) = &config.duration {
-        return d.to_string();
-    }
-
-    DEFAULT_DURATION.to_string()
 }
 
 fn write_mfa_credentials(mfa_profile: &str, tokens: &SessionTokens) -> Result<()> {
